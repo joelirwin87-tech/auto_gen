@@ -63,12 +63,12 @@ def run(topic: str = "daily productivity tips") -> Dict[str, Any]:
         logger.error("Prompt generation failed: %s", exc)
     result["prompt"] = prompt_text
 
-    image_output = BASE_DIR / "out.png"
     try:
-        image_path = Path(generate_image(prompt_text, str(image_output)))
+        image_path = Path(generate_image(prompt_text))
     except Exception as exc:
         logger.error("Image generation failed: %s", exc)
-        image_path = Path(_fallback_image(image_output, prompt_text))
+        fallback_output = BASE_DIR / "static" / "out.png"
+        image_path = Path(_fallback_image(fallback_output, prompt_text))
     result["image_path"] = str(image_path)
 
     video_output = BASE_DIR / "out.mp4"
