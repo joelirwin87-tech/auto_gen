@@ -5,7 +5,7 @@ The Auto Content Factory turns a topic into a lightweight social media package: 
 ## Project Structure
 
 - `src/llm_prompt.py` – builds a caption using OpenAI with a local fallback message.
-- `src/image_gen.py` – generates an image using the Hugging Face Kandinsky 2.2 pipeline (or a placeholder if the model cannot load).
+- `src/image_gen.py` – generates an image using the Hugging Face Stable Diffusion 2.1 base pipeline (or a placeholder if the model cannot load).
 - `src/video_gen.py` – stitches still images into an MP4 clip using `ffmpeg`, falling back to a simulated file when `ffmpeg` is missing.
 - `src/post_api.py` – simulates posting to Facebook while providing a structure for real integrations.
 - `src/main.py` – orchestrates the full workflow.
@@ -13,14 +13,17 @@ The Auto Content Factory turns a topic into a lightweight social media package: 
 ## Quick Start
 
 ```bash
+cd ~/Desktop
 git clone https://github.com/joelirwin87-tech/auto_gen.git
 cd auto_gen
 python3 -m venv venv
 source venv/bin/activate
 pip install -r REQUIREMENTS.txt
 cd src
-python3 main.py
+python app.py
 ```
+
+First run will download ~2 GB of Stable Diffusion weights. Subsequent runs use cached files.
 
 ### Run the Flask web demo
 
@@ -38,9 +41,9 @@ Then browse to [http://127.0.0.1:5000/](http://127.0.0.1:5000/) and submit a pro
 `generate_image(prompt)` behind the scenes, write the output to `static/out.png`, and the page refresh will
 display the newly generated (or placeholder) artwork.
 
-Running the command will download the Kandinsky 2.2 decoder from Hugging Face if it is not already cached. The script writes its outputs to the `src/` directory:
+Running the command will download the Stable Diffusion 2.1 base decoder from Hugging Face if it is not already cached. The script writes its outputs to the `src/` directory:
 
-- `static/out.png` – the generated image from the Kandinsky pipeline.
+- `static/out.png` – the generated image from the Stable Diffusion pipeline.
 - `out.mp4` – a short video clip stitched from the generated image.
 
 If CUDA is available the pipeline will automatically move to the GPU; otherwise it runs entirely on the CPU without further configuration.
@@ -59,6 +62,6 @@ cp .env.example .env
 ## Troubleshooting
 
 - The first image generation run can take several minutes while dependencies download. Subsequent runs reuse the cached weights.
-- If the Kandinsky model cannot be fetched, a placeholder image is produced so the rest of the pipeline still succeeds.
+- If the Stable Diffusion 2.1 base model cannot be fetched, a placeholder image is produced so the rest of the pipeline still succeeds.
 - Install `ffmpeg` and ensure it is on your `PATH` to create real MP4 files. Without it the pipeline emits a simulated text file in place of the video.
 - Run `python3 main.py --help` from the `src/` directory for CLI usage details.
