@@ -1,6 +1,7 @@
 """Orchestrator for the auto content generation pipeline."""
 from __future__ import annotations
 
+import argparse
 import json
 from typing import Any, Dict
 
@@ -10,7 +11,7 @@ from post_api import post_to_facebook
 from video_gen import stitch_video
 
 
-def run(topic: str = "daily productivity tips") -> None:
+def run(topic: str = "daily productivity tips") -> Dict[str, Any]:
     """Execute the full content-generation workflow for the provided topic."""
     result: Dict[str, Any]
     try:
@@ -19,8 +20,8 @@ def run(topic: str = "daily productivity tips") -> None:
         video_output = "out.mp4"
 
         image_path = generate_image(prompt_text, image_output)
-        video_path = stitch_video([image_output], video_output)
-        facebook_response = post_to_facebook(prompt_text, image_output)
+        video_path = stitch_video([image_path], video_output)
+        facebook_response = post_to_facebook(prompt_text, image_path)
 
         result = {
             "success": bool(facebook_response.get("success")),
@@ -36,8 +37,17 @@ def run(topic: str = "daily productivity tips") -> None:
     except Exception as exc:  # pragma: no cover - defensive safeguard
         result = {"success": False, "error": str(exc)}
 
-    print(json.dumps(result, indent=2))
+    return result
+
+
+def _main() -> None:
+    parser = argparse.ArgumentParser(description="Auto content generation orchestrator")
+    parser.add_argument("topic", nargs="?", default="daily productivity tips", help="Topic to generate content for")
+    args = parser.parse_args()
+
+    outcome = run(args.topic)
+    print(json.dumps(outcome, indent=2))
 
 
 if __name__ == "__main__":  # pragma: no cover - script entry point
-    run()
+    _main()
