@@ -22,9 +22,25 @@ cd src
 python3 main.py
 ```
 
+### Run the Flask web demo
+
+Launch the lightweight UI to enter prompts manually:
+
+```bash
+cd ~/Desktop/auto_gen
+source venv/bin/activate
+pip install -r REQUIREMENTS.txt
+cd src
+python app.py
+```
+
+Then browse to [http://127.0.0.1:5000/](http://127.0.0.1:5000/) and submit a prompt. The server will run
+`generate_image(prompt)` behind the scenes, write the output to `static/out.png`, and the page refresh will
+display the newly generated (or placeholder) artwork.
+
 Running the command will download the Kandinsky 2.2 decoder from Hugging Face if it is not already cached. The script writes its outputs to the `src/` directory:
 
-- `out.png` – the generated image from the Kandinsky pipeline.
+- `static/out.png` – the generated image from the Kandinsky pipeline.
 - `out.mp4` – a short video clip stitched from the generated image.
 
 If CUDA is available the pipeline will automatically move to the GPU; otherwise it runs entirely on the CPU without further configuration.

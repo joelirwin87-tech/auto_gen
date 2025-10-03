@@ -43,6 +43,9 @@ logger = logging.getLogger(__name__)
 
 PIPELINE_ID = "kandinsky-community/kandinsky-2-2-decoder"
 
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_OUTPUT_PATH = (BASE_DIR / "static" / "out.png").resolve()
+
 
 @lru_cache(maxsize=1)
 def get_T2I_pipeline() -> "KandinskyV22Pipeline":
@@ -153,16 +156,12 @@ def _generate_with_kandinsky(prompt: str, output_path: Path, device: str) -> Opt
     return saved_path
 
 
-def generate_image(
-    prompt: str, output_path: str, device: Optional[str] = "auto"
-) -> str:
-    """Generate an image using the Kandinsky 2.2 pipeline and persist it to disk."""
+def generate_image(prompt: str, device: Optional[str] = "auto") -> str:
+    """Generate an image and persist it to the default static output path."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("prompt must be a non-empty string.")
-    if not isinstance(output_path, str) or not output_path.strip():
-        raise ValueError("output_path must be a non-empty string path.")
 
-    output_file = _ensure_output_path(Path(output_path).expanduser().resolve())
+    output_file = _ensure_output_path(DEFAULT_OUTPUT_PATH)
     if device is not None and not isinstance(device, str):
         raise ValueError("device must be a string identifier or None.")
 
