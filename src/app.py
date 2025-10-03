@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 from pathlib import Path
 from typing import Optional
@@ -47,14 +48,25 @@ def index() -> str:
             error_message = "Please provide a prompt before generating an image."
         else:
             try:
-                image_path = Path(generate_image(prompt_value))
-                if not image_path.exists():
-                    raise FileNotFoundError(image_path)
+                generated_path = Path(generate_image(prompt_value))
+                if not generated_path.exists():
+                    raise FileNotFoundError(generated_path)
+
+                if generated_path.resolve() != DEFAULT_IMAGE.resolve():
+                    try:
+                        shutil.copy2(generated_path, DEFAULT_IMAGE)
+                        image_path = DEFAULT_IMAGE
+                    except Exception as copy_error:
+                        raise RuntimeError(
+                            f"Failed to copy generated file to {DEFAULT_IMAGE}"
+                        ) from copy_error
+                else:
+                    image_path = generated_path
                 # Bust browser cache by appending timestamp query parameter.
                 cache_buster = int(time.time())
                 image_url = url_for("static", filename=image_path.name) + f"?v={cache_buster}"
             except Exception as exc:  # pragma: no cover - runtime feedback for UI
-                logger.exception("Image generation failed: %s", exc)
+                logger.exception("Stable Diffusion image generation failed: %s", exc)
                 error_message = "Unable to generate image. Please try again."
 
     # Display the most recent image even when the request is GET only.
