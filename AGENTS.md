@@ -2,7 +2,7 @@
 
 ## Overview
 Goal: Local desktop pipeline that generates social content automatically.
-Flow: Topic → Text Prompt → Kandinsky-3 Image → Video Stitch → Post to Socials.
+Flow: Topic → Text Prompt → Kandinsky Image → Video Stitch → Post to Socials.
 
 Each agent works in its own branch, submits a PR, then Stitcher merges.
 
@@ -18,7 +18,7 @@ Each agent works in its own branch, submits a PR, then Stitcher merges.
 
 ### Agent 2: Image Generator
 - File: `src/image_gen.py`
-- Task: Wrap Kandinsky-3 (`get_T2I_pipeline`) to produce PNG from text.
+- Task: Wrap the Hugging Face Kandinsky pipeline (`get_T2I_pipeline`) to produce PNG from text.
 - Save file path and return.
 - Expose `generate_image(prompt: str, output_path: str) -> str`.
 
