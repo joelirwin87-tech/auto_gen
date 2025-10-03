@@ -54,12 +54,18 @@ except Exception:  # pragma: no cover - best effort fallback
     )
 
 
-def _resolve_device(requested_device: str) -> str:
-    """Return a valid torch device string, falling back to CPU when necessary."""
-    if requested_device and requested_device != "cpu":
+def _resolve_device(requested_device: Optional[str]) -> str:
+    """Return a valid torch device string, selecting GPU automatically when possible."""
+    if requested_device in (None, "", "auto"):
+        if getattr(torch, "cuda", None) and torch.cuda.is_available():
+            return "cuda:0"
+        return "cpu"
+
+    if requested_device != "cpu" and getattr(torch, "cuda", None):
         if torch.cuda.is_available():
             return requested_device
         logger.warning("CUDA requested but not available. Falling back to CPU.")
+
     return "cpu"
 
 
@@ -139,7 +145,9 @@ def _generate_with_kandinsky(prompt: str, output_path: Path, device: str) -> Opt
     return saved_path
 
 
-def generate_image(prompt: str, output_path: str, device: str = "cuda:0") -> str:
+def generate_image(
+    prompt: str, output_path: str, device: Optional[str] = "auto"
+) -> str:
     """Generate an image using Kandinsky-3 and persist it to ``output_path``."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("prompt must be a non-empty string.")
@@ -147,6 +155,9 @@ def generate_image(prompt: str, output_path: str, device: str = "cuda:0") -> str
         raise ValueError("output_path must be a non-empty string path.")
 
     output_file = _ensure_output_path(Path(output_path).expanduser().resolve())
+    if device is not None and not isinstance(device, str):
+        raise ValueError("device must be a string identifier or None.")
+
     selected_device = _resolve_device(device)
 
     generated_path = _generate_with_kandinsky(prompt, output_file, selected_device)
