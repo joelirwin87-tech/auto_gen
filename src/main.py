@@ -24,6 +24,9 @@ from video_gen import stitch_video
 logger = logging.getLogger(__name__)
 
 
+BASE_DIR = Path(__file__).resolve().parent
+
+
 PLACEHOLDER_PNG = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PVqSxwAAAABJRU5ErkJggg=="
 )
@@ -60,7 +63,7 @@ def run(topic: str = "daily productivity tips") -> Dict[str, Any]:
         logger.error("Prompt generation failed: %s", exc)
     result["prompt"] = prompt_text
 
-    image_output = Path("out.png")
+    image_output = BASE_DIR / "out.png"
     try:
         image_path = Path(generate_image(prompt_text, str(image_output)))
     except Exception as exc:
@@ -68,7 +71,7 @@ def run(topic: str = "daily productivity tips") -> Dict[str, Any]:
         image_path = Path(_fallback_image(image_output, prompt_text))
     result["image_path"] = str(image_path)
 
-    video_output = Path("out.mp4")
+    video_output = BASE_DIR / "out.mp4"
     try:
         video_path = Path(stitch_video([str(image_path)], str(video_output)))
     except Exception as exc:

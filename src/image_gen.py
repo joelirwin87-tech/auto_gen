@@ -1,10 +1,10 @@
-"""Image generation utilities built around Kandinsky-3 with resilient fallbacks."""
+"""Image generation utilities backed by Hugging Face diffusers."""
 from __future__ import annotations
 
 import base64
 import logging
-import sys
 import textwrap
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
@@ -12,7 +12,6 @@ try:
     import torch
 except Exception:  # pragma: no cover - minimal environments without torch
     class _TorchStub:
-        float16 = "float16"
         float32 = "float32"
 
         class _Cuda:
@@ -23,6 +22,12 @@ except Exception:  # pragma: no cover - minimal environments without torch
         cuda = _Cuda()
 
     torch = _TorchStub()  # type: ignore
+
+
+try:
+    from diffusers import KandinskyV22Pipeline
+except Exception:  # pragma: no cover - diffusers optional for fallback mode
+    KandinskyV22Pipeline = None  # type: ignore
 
 
 try:  # Pillow is optional thanks to encoded placeholder fallbacks.
@@ -36,22 +41,22 @@ except Exception:  # pragma: no cover - occurs on minimal environments
 logger = logging.getLogger(__name__)
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-KANDINSKY_SRC = ROOT_DIR / "kandinsky3_src"
-if KANDINSKY_SRC.is_dir():  # Make the locally cloned repo importable.
-    sys.path.insert(0, str(KANDINSKY_SRC))
-else:
-    logger.warning(
-        "kandinsky3_src directory not found. Falling back to placeholder image generation."
-    )
+PIPELINE_ID = "kandinsky-community/kandinsky-2-2-decoder"
 
-try:  # Import lazily so the module continues to work when Kandinsky is absent.
-    from kandinsky3 import get_T2I_pipeline  # type: ignore
-except Exception:  # pragma: no cover - best effort fallback
-    get_T2I_pipeline = None  # type: ignore
-    logger.warning(
-        "Unable to import kandinsky3.get_T2I_pipeline. Placeholder images will be used."
+
+@lru_cache(maxsize=1)
+def get_T2I_pipeline() -> "KandinskyV22Pipeline":
+    """Instantiate the Kandinsky 2.2 decoder pipeline on the CPU."""
+
+    if KandinskyV22Pipeline is None:
+        raise RuntimeError("diffusers is not installed. Unable to load Kandinsky pipeline.")
+
+    pipe = KandinskyV22Pipeline.from_pretrained(
+        PIPELINE_ID,
+        torch_dtype=torch.float32,
     )
+    pipe.to("cpu")
+    return pipe
 
 
 def _resolve_device(requested_device: Optional[str]) -> str:
@@ -123,18 +128,21 @@ def _placeholder_image(prompt: str, output_path: Path) -> Path:
 
 
 def _generate_with_kandinsky(prompt: str, output_path: Path, device: str) -> Optional[Path]:
-    if get_T2I_pipeline is None:
+    try:
+        pipeline = get_T2I_pipeline()
+    except Exception as exc:  # pragma: no cover - triggered when diffusers unavailable
+        logger.error("Failed to load Kandinsky pipeline: %s", exc, exc_info=True)
         return None
 
-    dtype_map = {
-        "unet": torch.float16 if device != "cpu" else torch.float32,
-        "text_encoder": torch.float16 if device != "cpu" else torch.float32,
-        "movq": torch.float32,
-    }
-
     try:
-        pipeline = get_T2I_pipeline(device=device, dtype_map=dtype_map)
-        images = pipeline.generate_text2img(prompt=prompt, batch_size=1)
+        pipeline.to(device)
+        generator = torch.Generator(device=device)
+        images = pipeline(
+            prompt=prompt,
+            num_inference_steps=25,
+            guidance_scale=4.0,
+            generator=generator,
+        ).images
     except Exception as exc:  # pragma: no cover - pipeline failures depend on env
         logger.error("Kandinsky pipeline failed: %s", exc, exc_info=True)
         return None
@@ -148,7 +156,7 @@ def _generate_with_kandinsky(prompt: str, output_path: Path, device: str) -> Opt
 def generate_image(
     prompt: str, output_path: str, device: Optional[str] = "auto"
 ) -> str:
-    """Generate an image using Kandinsky-3 and persist it to ``output_path``."""
+    """Generate an image using the Kandinsky 2.2 pipeline and persist it to disk."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("prompt must be a non-empty string.")
     if not isinstance(output_path, str) or not output_path.strip():
