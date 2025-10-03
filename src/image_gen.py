@@ -25,9 +25,9 @@ except Exception:  # pragma: no cover - minimal environments without torch
 
 
 try:
-    from diffusers import KandinskyV22Pipeline
+    from diffusers import StableDiffusionPipeline
 except Exception:  # pragma: no cover - diffusers optional for fallback mode
-    KandinskyV22Pipeline = None  # type: ignore
+    StableDiffusionPipeline = None  # type: ignore
 
 
 try:  # Pillow is optional thanks to encoded placeholder fallbacks.
@@ -41,20 +41,20 @@ except Exception:  # pragma: no cover - occurs on minimal environments
 logger = logging.getLogger(__name__)
 
 
-PIPELINE_ID = "kandinsky-community/kandinsky-2-2-decoder"
+PIPELINE_ID = "stabilityai/stable-diffusion-2-1-base"
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_PATH = (BASE_DIR / "static" / "out.png").resolve()
 
 
 @lru_cache(maxsize=1)
-def get_T2I_pipeline() -> "KandinskyV22Pipeline":
-    """Instantiate the Kandinsky 2.2 decoder pipeline on the CPU."""
+def get_T2I_pipeline() -> "StableDiffusionPipeline":
+    """Instantiate the Stable Diffusion pipeline on the CPU."""
 
-    if KandinskyV22Pipeline is None:
-        raise RuntimeError("diffusers is not installed. Unable to load Kandinsky pipeline.")
+    if StableDiffusionPipeline is None:
+        raise RuntimeError("diffusers is not installed. Unable to load Stable Diffusion pipeline.")
 
-    pipe = KandinskyV22Pipeline.from_pretrained(
+    pipe = StableDiffusionPipeline.from_pretrained(
         PIPELINE_ID,
         torch_dtype=torch.float32,
     )
@@ -103,7 +103,7 @@ PLACEHOLDER_PNG = (
 
 
 def _placeholder_image(prompt: str, output_path: Path) -> Path:
-    """Generate a simple placeholder PNG when Kandinsky is unavailable."""
+    """Generate a simple placeholder PNG when Stable Diffusion is unavailable."""
     if Image is None or ImageDraw is None or ImageFont is None:
         output_path.write_bytes(base64.b64decode(PLACEHOLDER_PNG))
         return output_path
@@ -111,7 +111,7 @@ def _placeholder_image(prompt: str, output_path: Path) -> Path:
     width, height = 1024, 1024
     image = Image.new("RGB", (width, height), color="#1f2933")
     draw = ImageDraw.Draw(image)
-    title = "Kandinsky placeholder"
+    title = "Stable Diffusion placeholder"
     wrapped_prompt = textwrap.fill(prompt, width=40)
     message = f"{title}\n\n{wrapped_prompt}"
 
@@ -130,29 +130,27 @@ def _placeholder_image(prompt: str, output_path: Path) -> Path:
     return output_path
 
 
-def _generate_with_kandinsky(prompt: str, output_path: Path, device: str) -> Optional[Path]:
+def _generate_with_sd(prompt: str, output_path: Path, device: str) -> Optional[Path]:
     try:
         pipeline = get_T2I_pipeline()
     except Exception as exc:  # pragma: no cover - triggered when diffusers unavailable
-        logger.error("Failed to load Kandinsky pipeline: %s", exc, exc_info=True)
+        logger.error("Failed to load Stable Diffusion pipeline: %s", exc, exc_info=True)
         return None
 
     try:
         pipeline.to(device)
-        generator = torch.Generator(device=device)
         images = pipeline(
             prompt=prompt,
             num_inference_steps=25,
-            guidance_scale=4.0,
-            generator=generator,
+            guidance_scale=7.5,
         ).images
     except Exception as exc:  # pragma: no cover - pipeline failures depend on env
-        logger.error("Kandinsky pipeline failed: %s", exc, exc_info=True)
+        logger.error("Stable Diffusion pipeline failed: %s", exc, exc_info=True)
         return None
 
     saved_path = _save_first_image(images, output_path)
     if saved_path is None:
-        logger.error("Kandinsky pipeline did not return any images.")
+        logger.error("Stable Diffusion pipeline did not return any images.")
     return saved_path
 
 
@@ -167,10 +165,10 @@ def generate_image(prompt: str, device: Optional[str] = "auto") -> str:
 
     selected_device = _resolve_device(device)
 
-    generated_path = _generate_with_kandinsky(prompt, output_file, selected_device)
+    generated_path = _generate_with_sd(prompt, output_file, selected_device)
     if generated_path is not None:
         return str(generated_path)
 
-    logger.info("Using placeholder image generator due to Kandinsky unavailability.")
+    logger.info("Using placeholder image generator due to Stable Diffusion unavailability.")
     placeholder_path = _placeholder_image(prompt, output_file)
     return str(placeholder_path)
