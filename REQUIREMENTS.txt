@@ -1,0 +1,8 @@
+torch>=2.0.0
+transformers>=4.40.0
+kandinsky3 @ git+https://github.com/ai-forever/Kandinsky-3.git
+openai
+requests
+python-dotenv
+Pillow
+ffmpeg-python
